@@ -3,21 +3,17 @@ import numpy as np
 import pencil as pc
 import argparse
 import h5py
+from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='magnetic helicity and energy spectra')
 parser.add_argument('--onlyenergy',type =bool, default=False, help='set to True for computing only energy spectra')
 args = parser.parse_args()
 onlyenergy = args.onlyenergy
 
+bbr = pc.read.slices(extension='yz',field='bb1').yz.bb1	#read in the r,theta, and phi components of the magnetic field 
+bbt = pc.read.slices(extension='yz',field='bb2').yz.bb2	#over a theta and phi surface
+bbp = pc.read.slices(extension='yz',field='bb3').yz.bb3
 
-# bbr = pc.read.slices(extension='yz',field='bb1').yz.bb1	#read in the r,theta, and phi components of the magnetic field 
-# bbt = pc.read.slices(extension='yz',field='bb2').yz.bb2	#over a theta and phi surface
-# bbp = pc.read.slices(extension='yz',field='bb3').yz.bb3
-var = h5py.File('ameya1_w_sc_prof.hdf5','r')
-
-bbr = np.array(var['mag']['rad'])
-bbt = np.array(var['mag']['the'])
-bbp = np.array(var['mag']['phi'])
 time,nlat,nphi = bbr.shape
 
 
@@ -28,9 +24,9 @@ en_c = np.zeros((time,lmax))
 hel_c = np.zeros((time,lmax),dtype=complex)
 
 for it in range(time):
-	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #creating the sht object, orthonormalised, w/o the (-1)^m factor
-	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   #IMPORTANT!!
-	qlm,slm,tlm = sh.analys(bbr[it].T,bbt[it].T,bbp[it].T) 					   #vec-harmonics expansion, transposing is only necessary to have the [theta,phi] 
+	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #orthonormalised, w/o the (-1)^m factor
+	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   
+	qlm,slm,tlm = sh.analys(bbr[it].T,bbt[it].T,bbp[it].T) 					   #IMPORTANT: transposing is only necessary to have the [theta,phi] 
 	re_qlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)					   #shape arrays for expansion coefficients, indexed with [l,m]
 	re_slm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 	re_tlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
@@ -93,13 +89,14 @@ for it in range(time):
 			if not(onlyenergy):
 				tmp2 = cm*((re_qlm[l,m])*np.conj(re_tlm[l+1,m])-(re_qlm_pr[l,m])*np.conj(re_tlm_pr[l+1,m])-(re_qlm_tr[l,m])*np.conj(re_tlm_tr[l+1,m]))
 			en_cc[l-1] += tmp1
-			hel_cc[l-1] += tmp2
+			if not(onlyenergy):
+				hel_cc[l-1] += tmp2
 	en_c[it] = en_cc.copy()
 	hel_c[it] = hel_cc.copy()
 
 degree = np.arange(1,lmax+1)
 t_begin = 10														#time index from which to average the spectra																			
-een_c = np.mean(en_c[t_begin::],axis=0)									#preparing the energy and helicity spectra to plot it on
+een_c = np.mean(en_c[t_begin::],axis=0)								#preparing the energy and helicity spectra to plot it on
 if not(onlyenergy):													#a log-log scale
 	hhel_c = np.mean(np.real(hel_c[t_begin::,:]),axis=0)
 	red_h = hhel_c.copy() 
@@ -109,14 +106,22 @@ if not(onlyenergy):													#a log-log scale
 
 plt.ion()
 plt.figure()
-plt.loglog(degree,een_c,'g')
+plt.loglog(degree[0:-1],een_c[0:-1],'g')
 scl = np.arange(1,lmax+1,dtype=float)
 scl +=0.5
 
 if not(onlyenergy):
-	plt.loglog(degree,-1*blue_h*scl,'ob') 
-	plt.loglog(degree,red_h*scl,'xr') 
-	plt.loglog(degree,np.abs(hhel_c.real)*scl,'--k')
+	plt.loglog(degree[0:-1],-1*blue_h[0:-1]*scl[0:-1],'ob') 
+	plt.loglog(degree[0:-1],red_h[0:-1]*scl[0:-1],'xr') 
+	plt.loglog(degree[0:-1],np.abs(hhel_c.real[0:-1])*scl[0:-1],'--k')
 plt.show()
 
+if savespectra:
+	file = h5py.File('spectra.hdf5','w')
+	gp1 = file.create_group('spectra')
+	gp1.create_dataset('magenergy',data = en_c)	
+	gp1.create_dataset('degree', data = degree)
+	if not(onlyenergy):
+		gp1 = file.create_dataset('maghelicity',data = hel_c)
+	file.close()
 
