@@ -7,12 +7,18 @@ from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='magnetic helicity and energy spectra')
 parser.add_argument('--onlyenergy',type =bool, default=False, help='set to True for computing only energy spectra')
+parser.add_argument('--savespectra',type =bool, default=False, help='set to True for saving the spectra in a hdf5 file')
 args = parser.parse_args()
 onlyenergy = args.onlyenergy
+savespectra = args.savespectra
 
-bbr = pc.read.slices(extension='yz',field='bb1').yz.bb1	#read in the r,theta, and phi components of the magnetic field 
-bbt = pc.read.slices(extension='yz',field='bb2').yz.bb2	#over a theta and phi surface
-bbp = pc.read.slices(extension='yz',field='bb3').yz.bb3
+bbr_pre = pc.read.slices(extension='yz',field='bb1').yz.bb1	#read in the r,theta, and phi components of the magnetic field 
+bbt_pre = pc.read.slices(extension='yz',field='bb2').yz.bb2	#over a theta and phi surface
+bbp_pre = pc.read.slices(extension='yz',field='bb3').yz.bb3
+
+bbr = bbr_pre.astype('float64')
+bbt = bbt_pre.astype('float64')
+bbp = bbp_pre.astype('float64')
 
 time,nlat,nphi = bbr.shape
 
@@ -26,7 +32,7 @@ hel_c = np.zeros((time,lmax),dtype=complex)
 for it in range(time):
 	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #orthonormalised, w/o the (-1)^m factor
 	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   
-	qlm,slm,tlm = sh.analys(bbr[it].T,bbt[it].T,bbp[it].T) 					   #IMPORTANT: transposing is only necessary to have the [theta,phi] 
+	qlm,slm,tlm = sh.analys(bbr,bbt,bbp) 					   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
 	re_qlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)					   #shape arrays for expansion coefficients, indexed with [l,m]
 	re_slm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 	re_tlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
@@ -43,7 +49,7 @@ for it in range(time):
 		nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 
 
 		bbz = np.zeros(bbr[it].shape)
-		qlm_pr,slm_pr,tlm_pr = sh.analys(bbp[it].T,bbz.T,bbr[it].T) 
+		qlm_pr,slm_pr,tlm_pr = sh.analys(bbr,bbt,bbp) 
 
 
 		re_qlm_pr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
@@ -61,7 +67,7 @@ for it in range(time):
 		nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 
 
 		bbz = np.zeros(bbr[it].shape)
-		qlm_tr,slm_tr,tlm_tr = sh.analys(bbt[it].T,bbr[it].T,bbz.T) 
+		qlm_tr,slm_tr,tlm_tr = sh.analys(bbr,bbt,bbp) 
 
 
 		re_qlm_tr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
@@ -95,7 +101,7 @@ for it in range(time):
 	hel_c[it] = hel_cc.copy()
 
 degree = np.arange(1,lmax+1)
-t_begin = 10														#time index from which to average the spectra																			
+t_begin = 0														#time index from which to average the spectra																			
 een_c = np.mean(en_c[t_begin::],axis=0)								#preparing the energy and helicity spectra to plot it on
 if not(onlyenergy):													#a log-log scale
 	hhel_c = np.mean(np.real(hel_c[t_begin::,:]),axis=0)

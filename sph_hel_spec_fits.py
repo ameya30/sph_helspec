@@ -16,9 +16,13 @@ filename = ''
 mag_data = fits.open(filename)[0].data.copy()		#read in the r,theta, and phi components of the magnetic field over a theta and phi surface
 													#this assumes the data is stored in the PrimaryHDU, please change if not
 
-bbr = mag_data[0].copy()    
-bbt = mag_data[1].copy()	 
-bbp = mag_data[2].copy()
+bbr_pre = mag_data[0].copy()    
+bbt_pre = mag_data[1].copy()	 
+bbp_pre = mag_data[2].copy()
+
+bbr = bbr_pre.astype('float64')
+bbt = bbt_pre.astype('float64')
+bbp = bbp_pre.astype('float64')
 
 time,nlat,nphi = bbr.shape
 
@@ -32,7 +36,7 @@ hel_c = np.zeros((time,lmax),dtype=complex)
 for it in range(time):
 	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #creating the sht object, orthonormalised, w/o the (-1)^m factor
 	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   
-	qlm,slm,tlm = sh.analys(bbr[it],bbt[it],bbp[it]) 					   	   #vec-harmonics expansion
+	qlm,slm,tlm = sh.analys(bbr[it],bbt[it],bbp[it]) 					   	   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
 	re_qlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)					   
 	re_slm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 	re_tlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
@@ -102,7 +106,7 @@ for it in range(time):
 
 
 degree = np.arange(1,lmax+1)
-t_begin = 10															#time index from which to average the spectra															
+t_begin = 0															#time index from which to average the spectra															
 een_c = np.mean(en_c[t_begin::],axis=0)									#preparing the energy and helicity spectra to plot it on
 if not(onlyenergy):													    #a log-log scale
 	hhel_c = np.mean(np.real(hel_c[t_begin::,:]),axis=0)
