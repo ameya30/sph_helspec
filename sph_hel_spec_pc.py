@@ -7,10 +7,15 @@ from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='magnetic helicity and energy spectra')
 parser.add_argument('--onlyenergy',type =bool, default=False, help='set to True for computing only energy spectra')
+parser.add_argument('--lmax',type =int, default=100, help='lmax should be set such that nphi>2*mmax')
 parser.add_argument('--savespectra',type =bool, default=False, help='set to True for saving the spectra in a hdf5 file')
-args = parser.parse_args()
-onlyenergy = args.onlyenergy
-savespectra = args.savespectra
+parser.add_argument('--plotspectra',type =bool, default=False, help='set to True for saving plots of time averaged spectra')
+args         = parser.parse_args()
+onlyenergy   = args.onlyenergy
+savespectra  = args.savespectra
+plotspectra  = args.plotspectra
+lmax         = args.lmax									#lmax decides mmax and nphi>2*mmax, where nphi is the 
+															#number of points in the phi/azimuthal direction. Therefore choose accordingly.
 
 bbr_pre = pc.read.slices(extension='yz',field='bb1').yz.bb1	#read in the r,theta, and phi components of the magnetic field 
 bbt_pre = pc.read.slices(extension='yz',field='bb2').yz.bb2	#over a theta and phi surface
@@ -21,18 +26,17 @@ bbt = bbt_pre.astype('float64')
 bbp = bbp_pre.astype('float64')
 
 time,nlat,nphi = bbr.shape
-
-
-lmax = 127												#lmax decides mmax and nphi>2*mmax, where nphi is the 
-                                                        #number of points in the phi/azimuthal direction. Therefore choose accordingly.
-
+									
+print("The magnetic field data has shape:",bbr.shape)
+print("sh.analys needs data as [theta,phi].")							   
+                                                        					  
 en_c = np.zeros((time,lmax))
 hel_c = np.zeros((time,lmax),dtype=complex)
 
 for it in range(time):
 	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #orthonormalised, w/o the (-1)^m factor
 	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   
-	qlm,slm,tlm = sh.analys(bbr,bbt,bbp) 					   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
+	qlm,slm,tlm = sh.analys(bbr,bbt,bbp) 					   				   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
 	re_qlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)					   #shape arrays for expansion coefficients, indexed with [l,m]
 	re_slm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 	re_tlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
@@ -72,7 +76,7 @@ for it in range(time):
 
 		re_qlm_tr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 		re_slm_tr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
-		re_tlm_tr= np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
+		re_tlm_tr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
 
 		for l in range(sh.lmax+1): 
 			for m in range(l+1): 
@@ -101,26 +105,25 @@ for it in range(time):
 	hel_c[it] = hel_cc.copy()
 
 degree = np.arange(1,lmax+1)
-t_begin = 0														#time index from which to average the spectra																			
-een_c = np.mean(en_c[t_begin::],axis=0)								#preparing the energy and helicity spectra to plot it on
-if not(onlyenergy):													#a log-log scale
-	hhel_c = np.mean(np.real(hel_c[t_begin::,:]),axis=0)
-	red_h = hhel_c.copy() 
-	blue_h = hhel_c.copy()
-	blue_h[blue_h>0] = 0 
-	red_h[red_h<0] = 0  
 
-plt.ion()
-plt.figure()
-plt.loglog(degree[0:-1],een_c[0:-1],'g')
-scl = np.arange(1,lmax+1,dtype=float)
-scl +=0.5
-
-if not(onlyenergy):
-	plt.loglog(degree[0:-1],-1*blue_h[0:-1]*scl[0:-1],'ob') 
-	plt.loglog(degree[0:-1],red_h[0:-1]*scl[0:-1],'xr') 
-	plt.loglog(degree[0:-1],np.abs(hhel_c.real[0:-1])*scl[0:-1],'--k')
-plt.show()
+if plotspectra:
+		t_begin = 0															#time index from which to average the spectra, please change as needed																		
+		een_c = np.mean(en_c[t_begin::],axis=0)								#preparing the energy and helicity spectra to plot it on
+		plt.ion()
+		plt.figure()
+		plt.loglog(degree[0:-1],een_c[0:-1],'g')
+		scl = np.arange(1,lmax+1,dtype=float)
+		scl +=0.5
+		if not(onlyenergy):													#a log-log scale
+			hhel_c = np.mean(np.real(hel_c[t_begin::,:]),axis=0)
+			red_h = hhel_c.copy() 
+			blue_h = hhel_c.copy()
+			blue_h[blue_h>0] = 0 
+			red_h[red_h<0] = 0  
+			plt.loglog(degree[0:-1],-1*blue_h[0:-1]*scl[0:-1],'ob') 
+			plt.loglog(degree[0:-1],red_h[0:-1]*scl[0:-1],'xr') 
+			plt.loglog(degree[0:-1],np.abs(hhel_c.real[0:-1])*scl[0:-1],'--k')
+		plt.savefig('en_hel_spec.png',dpi=300)
 
 if savespectra:
 	file = h5py.File('spectra.hdf5','w')
