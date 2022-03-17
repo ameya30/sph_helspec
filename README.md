@@ -22,4 +22,6 @@ To run this routine simply copy the routine to the relevant directory and execut
   For example: python sph_hel_spec_pc.py --onlyenergy=True
 - If you wish to save the spectra in an hdf5 file run the routines with the --savespectra=True flag.
   For example: python sph_hel_spec_fits.py --savespectra=True
-To retrieve the spectra
+- If you wish to save the time averaged spectra in .png format run the routines with the --plotspectra=True flag.
+  For example: python sph_hel_spec_fits.py --plotpectra=True
+
