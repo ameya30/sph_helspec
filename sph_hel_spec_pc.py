@@ -36,7 +36,7 @@ hel_c = np.zeros((time,lmax),dtype=complex)
 for it in range(time):
 	sh = shtns.sht(lmax=lmax,norm=shtns.sht_orthonormal|shtns.SHT_NO_CS_PHASE) #orthonormalised, w/o the (-1)^m factor
 	nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 							   
-	qlm,slm,tlm = sh.analys(bbr,bbt,bbp) 					   				   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
+	qlm,slm,tlm = sh.analys(bbr[it],bbt[it],bbp[it]) 					   				   #IMPORTANT: it needs [theta,phi], if reversed please transpose i.e. bbr -> bbr.T
 	re_qlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)					   #shape arrays for expansion coefficients, indexed with [l,m]
 	re_slm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
 	re_tlm = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex) 
@@ -53,7 +53,7 @@ for it in range(time):
 		nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 
 
 		bbz = np.zeros(bbr[it].shape)
-		qlm_pr,slm_pr,tlm_pr = sh.analys(bbr,bbt,bbp) 
+		qlm_pr,slm_pr,tlm_pr = sh.analys(bbp[it],bbz,bbr[it]) 
 
 
 		re_qlm_pr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
@@ -71,7 +71,7 @@ for it in range(time):
 		nlat,nphi = sh.set_grid(nlat=nlat,nphi=nphi) 
 
 		bbz = np.zeros(bbr[it].shape)
-		qlm_tr,slm_tr,tlm_tr = sh.analys(bbr,bbt,bbp) 
+		qlm_tr,slm_tr,tlm_tr = sh.analys(bbt[it],bbr[it],bbz) 
 
 
 		re_qlm_tr = np.zeros((sh.lmax+1,sh.mmax+1),dtype=complex)
